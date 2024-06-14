@@ -1,0 +1,8 @@
+prefix=/home/pi/datn_navbot_pi/devel
+
+Name: navstack_pub
+Description: Description of navstack_pub
+Version: 0.0.0
+Cflags: -I/home/pi/datn_navbot_pi/src/navstack_pub/include
+Libs: -L${prefix}/lib -lnavstack_pub
+Requires: geometry_msgs move_base nav_msgs roscpp rospy sensor_msgs std_msgs tf tf2_ros

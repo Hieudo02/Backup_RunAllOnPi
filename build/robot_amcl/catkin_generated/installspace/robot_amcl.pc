@@ -1,0 +1,8 @@
+prefix=/home/pi/datn_navbot_pi/install
+
+Name: robot_amcl
+Description: Description of robot_amcl
+Version: 0.0.0
+Cflags: 
+Libs: -L${prefix}/lib 
+Requires: 

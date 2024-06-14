@@ -1,0 +1,2 @@
+localization_data_pub:mpu_6050_driver:navstack_pub:robot_amcl:robot_mapping:robot_model:rplidar_ros
+-DCATKIN_DEVEL_PREFIX=/home/pi/datn_navbot_pi/devel -DCMAKE_INSTALL_PREFIX=/home/pi/datn_navbot_pi/install -G Unix Makefiles

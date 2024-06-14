@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Robot Controller</title>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f0f0f0;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    height: 100vh;
+    overflow: auto;
+}
+
+.container {
+    width: 90%;
+    max-width: 600px;
+    margin: 20px auto;
+    text-align: center;
+    position: relative;
+    padding: 20px;
+    border: 2px solid #87ceeb;
+    border-radius: 10px;
+    background-color: #87ceeb;
+}
+
+h1 {
+    text-align: center;
+    color: #333;
+}
+
+.section {
+    border: 2px solid #ccc;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    background-color: #f9f9f9;
+}
+
+.directional-button {
+    display: inline-block;
+    width: 60px;
+    height: 60px;
+    margin: 10px;
+    cursor: pointer;
+    background-color: blue;
+    border: none;
+    border-radius: 50%;
+    position: relative;
+}
+.directional-button:before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 15px 0 15px 25px;
+    border-color: transparent transparent transparent white;
+}
+.button-up:before {
+    transform: translate(-50%, -50%) rotate(-90deg);
+}
+.button-down:before {
+    transform: translate(-50%, -50%) rotate(90deg);
+}
+.button-left:before {
+    transform: translate(-50%, -50%) rotate(180deg);
+}
+.button-right:before {
+    transform: translate(-50%, -50%) rotate(0deg);
+}
+
+.directional-button.button-left {
+    margin-right: 80px;
+}
+.button-increase,
+.button-decrease,
+.button-stop {
+    width: 45%;
+    height: 50px;
+    margin: 10px 2%;
+    background-color: green;
+    border: none;
+    color: white;
+    font-size: 16px;
+    border-radius: 12px;
+    display: inline-block;
+}
+.button-decrease {
+    background-color: green;
+}
+.button-stop {
+    background-color: red;
+}
+
+/* Style cho phần hiển thị ảnh */
+.image-container {
+    margin-top: 20px;
+    position: relative;
+    overflow: hidden;
+}
+.image-container img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+    cursor: pointer;
+}
+#fullscreenImage {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    overflow: auto;
+}
+#fullscreenImg {
+    display: block;
+    margin: auto;
+    max-width: 100%;
+    max-height: 100%;
+    transition: transform 0.2s;
+}
+#fullscreenImage img {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+}
+#closeFullscreen, #zoomIn, #zoomOut {
+    position: fixed;
+    top: 10px;
+    width: 40px;
+    height: 40px;
+    background: white;
+    color: black;
+    border: none;
+    font-size: 30px;
+    cursor: pointer;
+    border-radius: 50%;
+    z-index: 1001;
+}
+
+#closeFullscreen {
+    right: 20px;
+}
+
+#zoomIn {
+    right: 70px;
+}
+
+#zoomOut {
+    right: 120px;
+}
+
+.marker {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background-color: red;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1001;
+}
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>ROBOT CONTROLLER</h1>
+    <div class="section">
+        <div class="control-section">
+            <button class="directional-button button-up" onclick="logValue('w')"></button><br>
+            <button class="directional-button button-left" onclick="logValue('a')"></button>
+            <button class="directional-button button-right" onclick="logValue('d')"></button><br>
+            <button class="directional-button button-down" onclick="logValue('x')"></button><br>
+            <button class="button-increase" onclick="logValue('e')">Speed Up</button>
+            <button class="button-decrease" onclick="logValue('r')">Speed Down</button>
+            <button class="button-stop" onclick="logValue('s')">Stop</button>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Upload Map</h2>
+        <form method="POST" enctype="multipart/form-data" id="uploadForm">
+            <input type="file" name="file" id="fileInput" accept="image/*" onchange="previewImage(event)">
+            <br>
+            Resolution (m/pixel): <input type="number" id="uploadResolution" value="1">
+        </form>
+        <button class="button-done" onclick="sendUploadedMapData()" style="margin-top: 10px; background-color: green; color: white; padding: 10px 20px; border: none; border-radius: 10px;">Done</button>
+        <div class="image-container" id="imageContainer" style="display: none;">
+            <img id="uploadedImage">
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Select Map</h2>
+        <select id="imageSelector" onchange="loadSelectedImage()">
+            <option value="">Select an image</option>
+            <!-- Các tùy chọn ảnh từ thư mục cố định sẽ được thêm vào đây -->
+        </select>
+        <br>
+        Resolution (m/pixel): <input type="number" id="selectResolution" value="0.05">
+        <div class="image-container" id="selectedImageContainer" style="display: none;">
+            <img id="selectedImage">
+        </div>
+        <div id="fullscreenImage" style="display: none;">
+            <div id="markerContainer" style="position: relative; width: 100%; height: 100%;">
+                <img id="fullscreenImg" style="width: 100%; height: auto;" onclick="addMarker(event)">
+            </div>
+            <button id="closeFullscreen" onclick="closeFullscreen()">✓</button>
+            <button id="zoomIn" onclick="zoomIn()">+</button>
+            <button id="zoomOut" onclick="zoomOut()">-</button>
+        </div>
+        <button id="doneButton" onclick="sendSelectedImage()" style="margin-top: 10px; background-color: green; color: white; padding: 10px 20px; border: none; border-radius: 10px;">Done</button>
+        <button id="runButton" onclick="sendRunCommand()" style="margin-top: 10px; background-color: blue; color: white; padding: 10px 20px; border: none; border-radius: 10px;">Run</button>
+    </div>
+</div>
+
+<script>
+    var loggingInterval;
+    var clickedPoints = [];
+    var currentScale = 1;
+    var resolution = 0.05; // Default resolution
+
+    function startLogging(direction) {
+        loggingInterval = setInterval(function() {
+            console.log(direction);
+            sendData(direction);
+        }, 100);
+    }
+
+    function stopLogging() {
+        logValue('s');
+        clearInterval(loggingInterval);
+    }
+
+    function logValue(value) {
+        console.log(value);
+        sendData(value);
+    }
+
+    function sendData(value) {
+        fetch('/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ direction: value })
+        })
+        .then(response => console.log('Data sent:', value))
+        .catch(error => console.error('Error sending data:', error));
+    }
+
+    function previewImage(event) {
+        var fileInput = event.target;
+        var file = fileInput.files[0];
+        var uploadedImage = document.getElementById('uploadedImage');
+
+        var reader = new FileReader();
+        reader.onload = function() {
+            uploadedImage.src = reader.result;
+            document.getElementById('imageContainer').style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function sendUploadedMapData() {
+        var form = document.getElementById('uploadForm');
+        var formData = new FormData(form);
+
+        var uploadImgResolution = document.getElementById('uploadResolution').value;
+        formData.append('uploadResolution', uploadImgResolution);
+
+        clickedPoints.forEach((point, index) => {
+            formData.append(`points[${index}][x]`, point.x);
+            formData.append(`points[${index}][y]`, point.y);
+        });
+
+        fetch('/', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            var imageContainer = document.getElementById('imageContainer');
+            var uploadedImage = document.getElementById('uploadedImage');
+            uploadedImage.src = data.url;
+            imageContainer.style.display = 'block';
+            clickedPoints = []; // Reset the points after sending
+        })
+        .catch(error => console.error('Error uploading image:', error));
+    }
+
+    document.getElementById('uploadedImage').addEventListener('click', function(event) {
+        zoomImage(event.target);
+    });
+
+    document.getElementById('selectedImage').addEventListener('click', function(event) {
+        zoomImage(event.target);
+    });
+
+    function zoomImage(imgElement) {
+        var fullscreenImage = document.getElementById('fullscreenImage');
+        var fullscreenImg = document.getElementById('fullscreenImg');
+        fullscreenImg.src = imgElement.src;
+        fullscreenImg.style.transform = `scale(${currentScale})`;
+        fullscreenImg.style.transformOrigin = 'center center';
+
+        fullscreenImg.onload = function() {
+            var windowWidth = window.innerWidth;
+            var windowHeight = window.innerHeight;
+            var imgAspectRatio = fullscreenImg.naturalWidth / fullscreenImg.naturalHeight;
+            var windowAspectRatio = windowWidth / windowHeight;
+
+            if (imgAspectRatio > windowAspectRatio) {
+                fullscreenImg.style.width = '100%';
+                fullscreenImg.style.height = 'auto';
+            } else {
+                fullscreenImg.style.width = 'auto';
+                fullscreenImg.style.height = '100%';
+            }
+
+            displayMarkers();
+        };
+
+        fullscreenImage.style.display = 'flex';
+    }
+
+    function closeFullscreen() {
+        document.getElementById('fullscreenImage').style.display = 'none';
+        document.getElementById('fullscreenImg').classList.remove('zoomed');
+        currentScale = 1;
+    }
+
+    function loadImages() {
+        fetch('/list_images')
+        .then(response => response.json())
+        .then(images => {
+            var selector = document.getElementById('imageSelector');
+            images.forEach(image => {
+                var option = document.createElement('option');
+                option.value = image;
+                option.textContent = image;
+                selector.appendChild(option);
+            });
+        })
+        .catch(error => console.error('Error loading images:', error));
+    }
+
+    function loadSelectedImage() {
+        var selector = document.getElementById('imageSelector');
+        var selectedImage = selector.value;
+        resolution = document.getElementById('selectResolution').value || 0.05; // Get resolution or use default
+        if (selectedImage) {
+            fetch(`/maps/${selectedImage}`)
+            .then(response => response.blob())
+            .then(blob => {
+                var url = URL.createObjectURL(blob);
+                var img = document.getElementById('selectedImage');
+                img.src = url;
+                document.getElementById('selectedImageContainer').style.display = 'block';
+            })
+            .catch(error => console.error('Error loading selected image:', error));
+        }
+    }
+
+    function addMarker(event) {
+        resolution = document.getElementById('selectResolution').value || 0.05; // Get resolution or use default
+        var imgElement = document.getElementById('fullscreenImg');
+        var rect = imgElement.getBoundingClientRect();
+        var naturalWidth = imgElement.naturalWidth;
+        var naturalHeight = imgElement.naturalHeight;
+
+        var scaleX = naturalWidth / rect.width;
+        var scaleY = naturalHeight / rect.height;
+
+        var x = ((event.clientX - rect.left) * scaleX);
+        var y = ((event.clientY - rect.top) * scaleY);
+
+        // Điều chỉnh tọa độ sao cho tâm ảnh là (0, 0)
+        var adjustedX = (x - (naturalWidth / 2)) * resolution;
+        var adjustedY = ((naturalHeight / 2) - y) * resolution;
+
+        // Kiểm tra xem click có nằm trong biên ảnh không
+        if (x < 0 || x > naturalWidth || y < 0 || y > naturalHeight) {
+            console.log('Click nằm ngoài biên ảnh');
+            return;
+        }
+
+        var point = { x: adjustedX.toFixed(2), y: adjustedY.toFixed(2) };
+
+        if (!clickedPoints.some(p => p.x === point.x && p.y === point.y)) {
+            clickedPoints.push(point);
+            displayMarkers();
+        }
+    }
+
+    function displayMarkers() {
+        var imgElement = document.getElementById('fullscreenImg');
+        var rect = imgElement.getBoundingClientRect();
+        var scaleX = rect.width / imgElement.naturalWidth;
+        var scaleY = rect.height / imgElement.naturalHeight;
+
+        document.querySelectorAll('.marker').forEach(marker => marker.remove());
+
+        clickedPoints.forEach(point => {
+            // Điều chỉnh lại tọa độ về hệ tọa độ ảnh
+            var imgX = ((parseFloat(point.x) / resolution) + (imgElement.naturalWidth / 2)) * (1 / scaleX);
+            var imgY = ((imgElement.naturalHeight / 2) - (parseFloat(point.y) / resolution)) * (1 / scaleY);
+
+            displayMarker(rect.left + ((parseFloat(point.x) / resolution) + imgElement.naturalWidth / 2) * scaleX, rect.top + ((imgElement.naturalHeight / 2) - (parseFloat(point.y) / resolution)) * scaleY);
+        });
+    }
+
+    function displayMarker(clientX, clientY) {
+        var marker = document.createElement('div');
+        marker.className = 'marker';
+        marker.style.left = `${clientX}px`;
+        marker.style.top = `${clientY}px`;
+        document.getElementById('markerContainer').appendChild(marker);
+    }
+
+    function zoomIn() {
+        currentScale += 1;
+        var imgElement = document.getElementById('fullscreenImg');
+        imgElement.style.transform = `scale(${currentScale})`;
+        setTimeout(displayMarkers, 200);
+    }
+    
+    function zoomOut() {
+        currentScale = Math.max(1, currentScale - 1);
+        var imgElement = document.getElementById('fullscreenImg');
+        imgElement.style.transform = `scale(${currentScale})`;
+        setTimeout(displayMarkers, 200);
+    }
+    
+    document.getElementById('fullscreenImg').addEventListener('click', function(event) {
+        addMarker(event);
+    });
+
+    function sendSelectedImage() {
+        var selector = document.getElementById('imageSelector');
+        var selectedImage = selector.value;
+        var resolution = document.getElementById('selectResolution').value || 0.05; // Get resolution or use default
+
+        fetch('/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                selected_image: selectedImage,
+                resolution: resolution
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Selected image sent:', data);
+        })
+        .catch(error => console.error('Error sending selected image:', error));
+    }
+
+    function sendRunCommand() {
+        fetch('/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                command: 'g',
+                points: clickedPoints
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Run command sent:', data);
+            clickedPoints = []; // Reset the points after sending
+            document.querySelectorAll('.marker').forEach(marker => marker.remove()); // Remove markers from UI
+        })
+        .catch(error => console.error('Error sending run command:', error));
+    }
+
+    window.onload = function() {
+        loadImages();
+    };
+
+</script>
+</body>
+</html>

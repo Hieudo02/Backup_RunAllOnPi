@@ -1,0 +1,96 @@
+<launch>
+<!-- BEGIN: robot_pose_ekf package -->
+    <!-- BEGIN: Transformation Configuration ... Setting Up the Relationships Between Coordinate Frames --> 
+    <!-- x y z roll pitch yaw parent_name child_name frequency-->
+    <node pkg="tf" type="static_transform_publisher" name="base_link_to_laser" args="0.08 0 0.07 0 0 0 base_link laser 30" />
+    <!-- <node pkg="tf" type="static_transform_publisher" name="imu_broadcaster" args="0 0.03 0 0 0 0 base_link imu 30" /> -->
+    <node pkg="tf" type="static_transform_publisher" name="base_link_broadcaster" args="0 0 0 0 0 0 base_footprint base_link 30" />
+
+    <!-- If we have a map, comment the map_to_odom, if not, uncomment it to use slam -->
+    <!-- odom to base_footprint transform will be provided by the robot_pose_ekf node -->
+    <!-- map to odom will be provided by the AMCL -->
+    <!-- <node pkg="tf" type="static_transform_publisher" name="map_to_odom" args="0 0 0 0 0 0 map odom 30" /> -->
+
+
+    <!-- Map Server -->
+    <!-- Publish: /map, /map_metadata -->
+    <!-- <node pkg="map_server" name="map_server" type="map_server" args="$(arg map_file)" /> -->
+    <arg name="map_file" default="$(find navstack_pub)/maps/$(arg map_name)"/>
+    <node pkg="map_server" name="map_server" type="map_server" args="$(arg map_file)" />
+    
+    <!-- Add AMCL example for differential drive robots for Localization -->
+    <!-- Subscribe: /scan, /tf, /initialpose, /map -->
+    <!-- Publish: /amcl_pose, /particlecloud, /tf -->
+    <!-- <include file="$(find amcl)/examples/amcl_diff.launch"/> -->
+    <include file="$(find robot_amcl)/launch/amcl.launch"/>
+
+
+    <!-- /imu -->
+    <include file="$(find mpu_6050_driver)/launch/mpu_6050_tf.launch"/>
+
+    <include file="$(find robot_mapping)/launch/rplidar_a1.launch"/>
+
+    <!-- Robot Model -->
+    <include file="$(find robot_model)/launch/robot_only_rviz.launch"/>    
+
+
+    <!-- BEGIN: Wheel Odometry Publisher -->
+    <!-- Subscribe: /right_ticks, /left_ticks, /initial_2d -->
+    <!-- Publish: /odom_data_euler, /odom_data_quat -->
+    <node name="ekf_odom_pub" pkg="localization_data_pub" type="ekf_odom_pub" output="screen"/>
+    <!-- END: Wheel Odometry Publisher -->
+        
+<!-- BEGIN: Extended Kalman Filter from robot_pose_ekf Node-->
+    <!-- Subscribe: /odom, /imu_data, /vo -->
+    <!-- Publish: /robot_pose_ekf/odom_combined -->
+    <remap from="odom" to="odom_data_quat" />
+    <remap from="imu" to="imu/data" />
+    <node pkg="robot_pose_ekf" type="robot_pose_ekf" name="robot_pose_ekf">
+        <param name="output_frame" value="odom"/>
+        <param name="base_footprint_frame" value="base_footprint"/>
+        <param name="freq" value="30.0"/>
+        <param name="sensor_timeout" value="1.0"/>
+        <param name="odom_used" value="true"/>
+        <param name="imu_used" value="true"/>
+        <param name="vo_used" value="false"/>
+        <param name="gps_used" value="false"/>
+        <param name="debug" value="false"/>
+        <param name="self_diagnose" value="false"/>
+    </node>
+    <!-- END: Extended Kalman Filter from robot_pose_ekf Node-->
+        
+
+    <!-- BEGIN: Initial Pose and Goal Publisher -->
+    <!-- Publish: /initialpose, /move_base_simple/goal -->
+    <!-- <node pkg="rviz" type="rviz" name="rviz" args="-d $(find navstack_pub)/navbot.rviz" required="true">
+    </node> --> 
+
+    <!-- Subscribe: /initialpose, /move_base_simple/goal -->
+    <!-- Publish: /initial_2d, /goal_2d --> 
+    <node pkg="localization_data_pub" type="rviz_click_to_2d" name="rviz_click_to_2d" /> 
+    <!-- END: Initial Pose and Goal Publisher -->
+
+    <!-- BEGIN: Set initial pose using .py file -->
+    <!-- Define arguments with default values -->  
+    <arg name="x" default="0.0"/>
+    <arg name="y" default="0.0"/> 
+    <arg name="yaw" default="0.0"/>
+
+    <node name="pub_initpose_node" pkg="navstack_pub" type="setInitialPose.py" output="screen">
+        <param name="x" value="$(arg x)"/>
+        <param name="y" value="$(arg y)"/>
+        <param name="yaw" value="$(arg yaw)"/> 
+    </node>
+    <!-- END: Set initial pose using .py file -->
+
+<!-- END: robot_pose_ekf package -->        
+
+    <!-- <include file="$(find navstack_pub)/launch/move_base.launch"/> -->
+    <!-- <include file="$(find navstack_pub)/launch/move_base_2.launch"/> -->
+    <include file="$(find navstack_pub)/launch/move_base_turtlebot3.launch"/>
+    
+    <!-- Control robot using key board -->
+    <!-- <node name="manualcontrol_pub_node" pkg="navstack_pub" type="pub_control.py" output="screen"/> -->
+    <!-- <node name="manualcontrol_pub_node" pkg="navstack_pub" type="custom_teleop_twist_keyboard.py" output="screen"/> -->
+
+</launch>

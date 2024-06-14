@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/pi/datn_navbot_pi/install/setup.sh
